@@ -18,8 +18,7 @@ CSRF_TRUSTED_ORIGINS = [
     origin for origin in env.list("CSRF_TRUSTED_ORIGINS", default=[]) if origin
 ]
 
-# Only async-capable middleware: a sync one would push every request
-# through a thread and slow the streaming proxy down.
+# Async middleware only: a sync one pushes each request through a thread
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",

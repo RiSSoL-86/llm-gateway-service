@@ -6,8 +6,7 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "django_project.settings")
 
 application = get_asgi_application()
 
-# Warm the shared OpenRouter client up: its TLS setup takes ~150 ms,
-# the first client request should not pay for it.
+# Warm the OpenRouter client up: the first request skips the ~150 ms TLS
 from services.open_router.client import OpenRouterClient  # noqa: E402
 
 OpenRouterClient.get()

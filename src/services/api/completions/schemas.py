@@ -10,7 +10,11 @@ class CompletionRequest(PermissiveModel):
     """List the request fields the gateway reads, any other is let through."""
 
     model: str | None = Field(default=None, examples=["openai/gpt-4o-mini"])
-    prompt: str | list[str] = Field(default="", examples=["Say hello"])
+    prompt: Any = Field(
+        default=None,
+        description="Text, a list of texts or of token lists.",
+        examples=["Say hello"],
+    )
     stream: bool = Field(
         default=False,
         description="`true`: server-sent events, chunk by chunk.",

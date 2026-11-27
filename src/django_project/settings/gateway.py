@@ -8,8 +8,11 @@ OPENROUTER_BASE_URL = env(
 # Our real OpenRouter key: the gateway swaps the client key for it
 OPENROUTER_API_KEY = env("OPENROUTER_API_KEY", default="")
 
-# Keys we give to clients: `our-key=client-name,other-key=other-name`
-GATEWAY_KEYS: dict[str, str] = env.dict("GATEWAY_KEYS", default={})
+# Client keys: `our-key=client-name,other-key=other-name`, spaces dropped
+GATEWAY_KEYS: dict[str, str] = {
+    key.strip(): name.strip()
+    for key, name in env.dict("GATEWAY_KEYS", default={}).items()
+}
 
 # One shared HTTP client per worker, long reads for slow models
 UPSTREAM_CONNECT_TIMEOUT = env.float("UPSTREAM_CONNECT_TIMEOUT", default=10)

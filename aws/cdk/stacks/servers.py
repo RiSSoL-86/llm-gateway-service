@@ -46,8 +46,7 @@ class ServersStack(cdk.Stack):
             description=description,
         )
 
-        # Own VPC, public subnets only: OpenRouter and GitHub through the
-        # Internet Gateway, no NAT to pay for
+        # Own VPC, public subnets: out via Internet Gateway, no NAT to pay for
         vpc = ec2.Vpc(
             scope=self,
             id="LlmGatewayService-vpc",

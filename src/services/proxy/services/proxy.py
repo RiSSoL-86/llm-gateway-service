@@ -17,6 +17,7 @@ from services.proxy.constants import (
     EVENT_STREAM,
     FORWARDED_REQUEST_HEADERS,
     FORWARDED_RESPONSE_HEADERS,
+    HEADER_ENCODING,
     RATE_LIMIT_HEADER_PREFIX,
     STREAM_HEADERS,
     UPSTREAM_AUTH_FAILED,
@@ -62,6 +63,10 @@ class ProxyService(BaseService):
             )
         except httpx.HTTPError as exc:
             return await self._unavailable(metrics=metrics, exc=exc)
+        except asyncio.CancelledError:
+            # Django cancels the view once the client goes away
+            await self._disconnected(metrics=metrics)
+            raise
         metrics.upstream_headers = perf_counter()
         metrics.status = upstream.status_code
 
@@ -70,8 +75,7 @@ class ProxyService(BaseService):
             stream = self._stream(
                 upstream=upstream, metrics=metrics, sniffer=sniffer
             )
-            # Started at once: if Django drops the response unsent, asyncio
-            # still closes the generator, its `finally` frees the upstream
+            # Started now: an unsent response still frees the upstream on close
             await anext(stream)
             return StreamingHttpResponse(
                 streaming_content=stream,
@@ -85,6 +89,9 @@ class ProxyService(BaseService):
             content = await upstream.aread()
         except httpx.HTTPError as exc:
             return await self._unavailable(metrics=metrics, exc=exc)
+        except asyncio.CancelledError:
+            await self._disconnected(metrics=metrics)
+            raise
         finally:
             await upstream.aclose()
         metrics.upstream_finished = metrics.first_byte = perf_counter()
@@ -93,8 +100,7 @@ class ProxyService(BaseService):
             sniffer.inspect_json(payload=content)
 
         if upstream.status_code == HTTPStatus.UNAUTHORIZED:
-            # Our own OpenRouter key is wrong: not the client's problem.
-            # 403 passes through: OpenRouter moderation flagged the input.
+            # Our OpenRouter key is wrong; 403 (moderation) passes through
             metrics.status = HTTPStatus.BAD_GATEWAY
             metrics.outcome = Outcome.UPSTREAM_ERROR
             metrics.error = f"our key rejected: {metrics.answer.error}"
@@ -151,6 +157,12 @@ class ProxyService(BaseService):
             await upstream.aclose()
             await self.report_metrics.execute(metrics=metrics)
 
+    async def _disconnected(self, metrics: ProxyMetrics) -> None:
+        # OpenRouter may bill the answer the client never took: still counted
+        metrics.upstream_finished = perf_counter()
+        metrics.outcome = Outcome.CLIENT_DISCONNECTED
+        await self.report_metrics.execute(metrics=metrics)
+
     async def _unavailable(
         self,
         metrics: ProxyMetrics,
@@ -184,10 +196,10 @@ class ProxyService(BaseService):
         return error.model_dump_json().encode()
 
     @staticmethod
-    def _forwarded(headers: Mapping[str, str]) -> dict[str, str]:
-        # Django request headers are case-insensitive
+    def _forwarded(headers: Mapping[str, str]) -> dict[str, bytes]:
+        # Case-insensitive get; latin-1 back to the very bytes the client sent
         return {
-            name: value
+            name: value.encode(encoding=HEADER_ENCODING)
             for name in FORWARDED_REQUEST_HEADERS
             if (value := headers.get(name))
         }

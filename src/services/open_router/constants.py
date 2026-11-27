@@ -15,3 +15,8 @@ TOKEN_DELTA_FIELDS = ("content", "reasoning", "tool_calls")
 # The text completion field of a choice
 TOKEN_TEXT_FIELD = "text"
 MAX_ERROR_LENGTH = 300
+# Bigger JSON answers are not parsed whole, only their own small fields
+LARGE_ANSWER_BYTES = 1024 * 1024
+ANSWER_FIELDS = (b"id", b"model", b"provider", b"usage", b"error")
+# Enough for any of those fields, `usage` with its details too
+MAX_FIELD_BYTES = 8192

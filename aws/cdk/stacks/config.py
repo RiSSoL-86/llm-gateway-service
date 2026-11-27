@@ -18,8 +18,7 @@ class Config:
     # Amazon Linux 2023 arm64: pinned, a new image must not replace servers
     server_image: str = "ami-09609e4587bf4f83e"
     servers: tuple[int, ...] = (1,)
-    # Graviton t4g: micro (1 GB) to check the flow, larger for the load.
-    # A new size only restarts the server: same disk, same address.
+    # Graviton t4g, bigger for the load; resizing keeps the disk and address
     server_size: ec2.InstanceSize = ec2.InstanceSize.MICRO
 
     @property

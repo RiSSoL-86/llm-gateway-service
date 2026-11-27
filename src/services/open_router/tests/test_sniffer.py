@@ -1,3 +1,4 @@
+from services.open_router.constants import LARGE_ANSWER_BYTES
 from services.open_router.parsers.sniffer import AnswerSniffer
 from services.open_router.schemas import OpenRouterAnswer
 
@@ -73,3 +74,37 @@ def test_first_token_of_text_completion() -> None:
     sniffer.feed(chunk=b'data: {"choices":[{"text":"Hi"}]}\n\n')
 
     assert answer.seen_token
+
+
+def test_reads_long_line_fed_in_pieces() -> None:
+    answer = OpenRouterAnswer()
+    sniffer = AnswerSniffer(answer=answer)
+    line = b'data: {"id":"g","choices":[{"delta":{"content":"' + b"x" * 1000
+
+    for start in range(0, len(line), 7):
+        sniffer.feed(chunk=line[start : start + 7])
+    sniffer.feed(chunk=b'"}}]}\n\n')
+
+    assert answer.generation_id == "g"
+    assert answer.seen_token
+
+
+def test_reads_own_fields_of_large_answer() -> None:
+    answer = OpenRouterAnswer()
+    sniffer = AnswerSniffer(answer=answer)
+    vector = b"[" + b",".join([b"0.0123456789"] * 1000) + b"]"
+    item = b'{"object":"embedding","embedding":' + vector + b',"index":0}'
+    data = b",".join([item] * 100)
+    payload = (
+        b'{"object":"list","data":[' + data + b'],"model":"e",'
+        b'"id":"gen-5","provider":"P",'
+        b'"usage":{"prompt_tokens":7,"cost":0.1}}'
+    )
+    assert len(payload) > LARGE_ANSWER_BYTES
+
+    sniffer.inspect_json(payload=payload)
+
+    assert answer.generation_id == "gen-5"
+    assert answer.model == "e"
+    assert answer.provider == "P"
+    assert answer.usage == {"prompt_tokens": 7, "cost": 0.1}

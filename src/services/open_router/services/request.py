@@ -22,7 +22,7 @@ class OpenRouterRequestService(BaseService):
         path: str,
         query: str,
         body: bytes,
-        headers: Mapping[str, str],
+        headers: Mapping[str, bytes],
     ) -> httpx.Response:
         """Return the OpenRouter response with its body not read yet."""
         client = OpenRouterClient.get()
@@ -31,17 +31,24 @@ class OpenRouterRequestService(BaseService):
             url=f"{path}?{query}" if query else path,
             content=body or None,
             # Ours go last: a client header never replaces our key
-            headers={**headers, **self._headers(has_body=bool(body))},
+            headers={
+                name.encode(): value
+                for name, value in {
+                    **headers,
+                    **self._headers(has_body=bool(body)),
+                }.items()
+            },
         )
         return await client.send(request=request, stream=True)
 
     @staticmethod
-    def _headers(has_body: bool) -> dict[str, str]:
+    def _headers(has_body: bool) -> dict[str, bytes]:
+        key: str = settings.OPENROUTER_API_KEY  # type: ignore[misc]
         headers = {
-            "Authorization": f"Bearer {settings.OPENROUTER_API_KEY}",  # type: ignore[misc]
+            "Authorization": f"Bearer {key}".encode(),
             # Plain bytes: nothing to decompress, chunks go out as they come
-            "Accept-Encoding": "identity",
+            "Accept-Encoding": b"identity",
         }
         if has_body:
-            headers["Content-Type"] = "application/json"
+            headers["Content-Type"] = b"application/json"
         return headers

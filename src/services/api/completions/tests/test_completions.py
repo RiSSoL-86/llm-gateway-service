@@ -46,3 +46,19 @@ async def test_proxies_text_stream(upstream, caplog) -> None:
     assert fields["endpoint"] == "completions"
     assert fields["completion_tokens"] == 2
     assert fields["ttft_ms"] is not None
+
+
+async def test_proxies_token_prompt(upstream) -> None:
+    upstream.install(
+        handler=lambda _: httpx.Response(
+            status_code=200, json={"id": "gen-4", "choices": []}
+        )
+    )
+    body = b'{"model": "m", "prompt": [[1212, 318], [42]]}'
+
+    response = await AsyncClient().post(
+        path=URL, data=body, content_type="application/json", headers=AUTH
+    )
+
+    assert response.status_code == 200
+    assert upstream[0].content == body

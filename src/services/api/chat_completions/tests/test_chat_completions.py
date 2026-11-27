@@ -216,3 +216,21 @@ async def test_upstream_down(upstream, caplog) -> None:
     assert response.status_code == 502
     assert response.json()["error"]["message"] == "Upstream is unavailable"
     assert metrics_line(caplog=caplog)["outcome"] == "upstream_unavailable"
+
+
+async def test_forwards_utf8_title_as_sent(upstream) -> None:
+    upstream.install(
+        handler=lambda _: httpx.Response(status_code=200, json=COMPLETION)
+    )
+    title = "Мой бот".encode()
+
+    response = await AsyncClient().post(
+        path=URL,
+        data={"model": "m", "messages": []},
+        content_type="application/json",
+        # What ASGI gives Django for the UTF-8 bytes of the header
+        headers={**AUTH, "X-Title": title.decode(encoding="latin-1")},
+    )
+
+    assert response.status_code == 200
+    assert upstream[0].headers.raw.count((b"X-Title", title)) == 1

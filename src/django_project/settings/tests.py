@@ -2,11 +2,10 @@ import sys
 
 from django_project.settings import env
 
-# `manage.py test` puts "test" in argv; pytest does not, so it is detected
-# via its imported module (present once the test session has started).
+# `test` as the manage.py command itself, or pytest once it is imported
 RUNNING_TESTS = (
     env.bool("DJANGO_TESTING", default=False)
-    or "test" in sys.argv
+    or sys.argv[1:2] == ["test"]
     or "pytest" in sys.modules
 )
 

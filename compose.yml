@@ -19,8 +19,7 @@ services:
       db:
         condition: service_healthy
 
-  # HTTPS on 443 with a Let's Encrypt certificate for PUBLIC_HOST, renewed itself.
-  # Server-sent events are flushed to the client right away, no buffering.
+  # HTTPS on 443, Let's Encrypt for PUBLIC_HOST; server-sent events unbuffered
   caddy:
     image: caddy:2-alpine
     command: ["caddy", "reverse-proxy", "--from", "${PUBLIC_HOST:?Set PUBLIC_HOST in src/.env}", "--to", "localhost:${PORT:?Set PORT in src/.env}"]

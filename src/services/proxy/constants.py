@@ -1,5 +1,7 @@
 # Client headers OpenRouter understands, the rest stays with us
 FORWARDED_REQUEST_HEADERS = ("HTTP-Referer", "X-Title")
+# ASGI header bytes come to Django decoded as this
+HEADER_ENCODING = "latin-1"
 # OpenRouter headers the client backs off by, the rest stays with us
 FORWARDED_RESPONSE_HEADERS = frozenset({"retry-after"})
 RATE_LIMIT_HEADER_PREFIX = "x-ratelimit-"

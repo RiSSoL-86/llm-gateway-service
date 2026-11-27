@@ -93,8 +93,16 @@ class LogsStack(cdk.Stack):
             log_group=log_group,
             filter_pattern=logs.FilterPattern.all(
                 PROXIED_REQUEST,
-                logs.FilterPattern.number_value(
-                    json_field="$.status", comparison=">=", value=400
+                logs.FilterPattern.any(
+                    logs.FilterPattern.number_value(
+                        json_field="$.status", comparison=">=", value=400
+                    ),
+                    # The 200 status is already sent when a stream breaks
+                    logs.FilterPattern.string_value(
+                        json_field="$.outcome",
+                        comparison="=",
+                        value="stream_error",
+                    ),
                 ),
             ),
             metric_namespace=config.metrics_namespace,
