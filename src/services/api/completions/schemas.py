@@ -7,7 +7,7 @@ from apps.common.schemas import PermissiveModel
 
 @final
 class CompletionRequest(PermissiveModel):
-    """List the request fields the gateway reads, any other is let through."""
+    """Describe the main request fields, the body goes to OpenRouter as is."""
 
     model: str | None = Field(default=None, examples=["openai/gpt-4o-mini"])
     prompt: Any = Field(

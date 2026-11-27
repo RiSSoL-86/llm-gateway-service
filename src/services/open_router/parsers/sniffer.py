@@ -3,6 +3,10 @@ from typing import TYPE_CHECKING, Any, ClassVar, final
 
 from services.open_router.constants import (
     ANSWER_FIELDS,
+    DELTA_FIELD,
+    DELTA_TOKEN_FIELDS,
+    ERROR_EVENT_TYPE,
+    INNER_ANSWER_FIELDS,
     LARGE_ANSWER_BYTES,
     MAX_ERROR_LENGTH,
     MAX_FIELD_BYTES,
@@ -58,6 +62,22 @@ class AnswerSniffer:
                 return
         if not isinstance(event, dict):
             return
+        self._read_event(event=event)
+        for field in INNER_ANSWER_FIELDS:
+            inner = event.get(field)
+            if isinstance(inner, dict):
+                self._read_event(event=inner)
+        if not self.answer.seen_token:
+            self.answer.seen_token = self._has_delta_token(
+                delta=event.get(DELTA_FIELD)
+            )
+        if event.get("type") == ERROR_EVENT_TYPE and not self.answer.error:
+            # A `responses` stream error: its message is top-level
+            self.answer.error = str(event.get("message") or event)[
+                :MAX_ERROR_LENGTH
+            ]
+
+    def _read_event(self, event: dict[str, Any]) -> None:
         answer = self.answer
         answer.generation_id = answer.generation_id or self._text(
             value=event.get("id")
@@ -68,7 +88,8 @@ class AnswerSniffer:
         )
         usage = event.get("usage")
         if isinstance(usage, dict):
-            answer.usage = usage
+            # `messages` streams send input tokens first, output ones last
+            answer.usage = (answer.usage or {}) | usage
         if not answer.seen_token:
             answer.seen_token = self._has_token(choices=event.get("choices"))
         error = event.get("error")
@@ -131,6 +152,15 @@ class AnswerSniffer:
             ):
                 return True
         return False
+
+    @staticmethod
+    def _has_delta_token(delta: object) -> bool:
+        # `responses`: the text itself; `messages`: a text, thinking or tool
+        if isinstance(delta, str):
+            return bool(delta)
+        return isinstance(delta, dict) and any(
+            delta.get(field) for field in DELTA_TOKEN_FIELDS
+        )
 
     @staticmethod
     def _text(value: object) -> str | None:

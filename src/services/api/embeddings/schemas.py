@@ -1,13 +1,13 @@
 from typing import Any, final
 
-from pydantic import Field
+from pydantic import BaseModel, Field
 
 from apps.common.schemas import PermissiveModel
 
 
 @final
 class EmbeddingRequest(PermissiveModel):
-    """List the request fields the gateway reads, any other is let through."""
+    """Describe the main request fields, the body goes to OpenRouter as is."""
 
     model: str | None = Field(
         default=None, examples=["openai/text-embedding-3-small"]
@@ -27,3 +27,20 @@ class EmbeddingResponse(PermissiveModel):
     data: list[dict[str, Any]]
     model: str
     usage: dict[str, Any] | None = None
+
+
+@final
+class EmbeddingModelsQuery(BaseModel):
+    """Take the page of the embedding model list."""
+
+    offset: int | None = Field(default=None, examples=[0])
+    limit: int | None = Field(default=None, examples=[50])
+
+
+@final
+class EmbeddingModelsResponse(PermissiveModel):
+    """Describe the OpenRouter embedding models, passed through unchanged."""
+
+    data: list[dict[str, Any]]
+    total_count: int | None = None
+    links: dict[str, Any] | None = None

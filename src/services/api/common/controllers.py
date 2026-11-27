@@ -5,6 +5,7 @@ from dmr.errors import ErrorType
 from dmr.plugins.pydantic import PydanticSerializer
 
 from services.api.common.auth import GatewayKeyAuth
+from services.api.common.endpoints import GatewayEndpoint
 from services.open_router.schemas import ErrorDetail, ErrorResponse
 
 
@@ -12,6 +13,7 @@ class GatewayController(Controller[PydanticSerializer]):
     """Base of every OpenRouter-like endpoint: gateway key, OpenAI errors."""
 
     auth = (GatewayKeyAuth(),)
+    endpoint_cls = GatewayEndpoint
     error_model = ErrorResponse
     # The answer is OpenRouter's own bytes: nothing of ours to validate
     validate_responses = False

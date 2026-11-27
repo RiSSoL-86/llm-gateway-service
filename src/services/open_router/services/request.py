@@ -33,22 +33,16 @@ class OpenRouterRequestService(BaseService):
             # Ours go last: a client header never replaces our key
             headers={
                 name.encode(): value
-                for name, value in {
-                    **headers,
-                    **self._headers(has_body=bool(body)),
-                }.items()
+                for name, value in {**headers, **self._headers()}.items()
             },
         )
         return await client.send(request=request, stream=True)
 
     @staticmethod
-    def _headers(has_body: bool) -> dict[str, bytes]:
+    def _headers() -> dict[str, bytes]:
         key: str = settings.OPENROUTER_API_KEY  # type: ignore[misc]
-        headers = {
+        return {
             "Authorization": f"Bearer {key}".encode(),
             # Plain bytes: nothing to decompress, chunks go out as they come
             "Accept-Encoding": b"identity",
         }
-        if has_body:
-            headers["Content-Type"] = b"application/json"
-        return headers

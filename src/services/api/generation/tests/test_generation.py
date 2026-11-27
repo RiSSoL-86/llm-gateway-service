@@ -34,9 +34,14 @@ async def test_passes_not_found_through(upstream) -> None:
     assert response.json() == error
 
 
-async def test_needs_generation_id(upstream) -> None:
+async def test_leaves_missing_id_to_openrouter(upstream) -> None:
+    error = {"error": {"code": 400, "message": "id is required"}}
+    upstream.install(
+        handler=lambda _: httpx.Response(status_code=400, json=error)
+    )
+
     response = await AsyncClient().get(path=URL, headers=AUTH)
 
     assert response.status_code == 400
-    assert response.json() == {"error": {"message": "id: Field required"}}
-    assert upstream == []
+    assert response.json() == error
+    assert upstream[0].url == f"{UPSTREAM_URL}/generation"

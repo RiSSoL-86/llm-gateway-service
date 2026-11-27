@@ -44,3 +44,57 @@ async def test_rejects_unknown_key(upstream) -> None:
 
     assert response.status_code == 401
     assert upstream == []
+
+
+async def test_proxies_model_count(upstream) -> None:
+    count = {"data": {"count": 300}}
+    upstream.install(
+        handler=lambda _: httpx.Response(status_code=200, json=count)
+    )
+
+    response = await AsyncClient().get(
+        path=f"{reverse('api:models:count')}?output_modalities=text",
+        headers=AUTH,
+    )
+
+    assert response.status_code == 200
+    assert response.json() == count
+    assert upstream[0].url == (
+        f"{UPSTREAM_URL}/models/count?output_modalities=text"
+    )
+
+
+async def test_proxies_model_endpoints(upstream, caplog) -> None:
+    endpoints = {"data": {"id": "openai/gpt-4o-mini", "endpoints": []}}
+    upstream.install(
+        handler=lambda _: httpx.Response(status_code=200, json=endpoints)
+    )
+    caplog.set_level(level=logging.INFO)
+    url = reverse(
+        "api:models:endpoints",
+        kwargs={"author": "openai", "slug": "gpt-4o-mini:free"},
+    )
+
+    response = await AsyncClient().get(path=url, headers=AUTH)
+
+    assert response.status_code == 200
+    assert response.json() == endpoints
+    assert upstream[0].url == (
+        f"{UPSTREAM_URL}/models/openai/gpt-4o-mini:free/endpoints"
+    )
+    fields = metrics_line(caplog=caplog)
+    assert fields["endpoint"] == "models/{author}/{slug}/endpoints"
+    assert fields["model"] == "openai/gpt-4o-mini:free"
+
+
+async def test_encodes_model_path_again(upstream) -> None:
+    upstream.install(
+        handler=lambda _: httpx.Response(status_code=404, json={})
+    )
+
+    response = await AsyncClient().get(
+        path="/api/v1/models/a%3Fb/c%23d/endpoints", headers=AUTH
+    )
+
+    assert response.status_code == 404
+    assert upstream[0].url.raw_path == b"/api/v1/models/a%3Fb/c%23d/endpoints"

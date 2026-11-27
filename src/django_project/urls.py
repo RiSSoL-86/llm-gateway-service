@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING
 
 from django.conf import settings
 from django.contrib import admin
+from django.contrib.staticfiles.views import serve as serve_found
 from django.urls import include, re_path
 from django.views.static import serve
 from dmr.openapi import OpenAPIConfig, build_schema
@@ -52,10 +53,10 @@ urlpatterns: list[URLPattern | URLResolver] = [
         OpenAPIJsonView.as_view(schema),
         name="schema-json",
     ),
-    # Admin static files only: no extra server or sync middleware for that
+    # Admin and Swagger files: no extra server; DEBUG reads them uncollected
     re_path(
         r"^static/(?P<path>.*)$",
-        serve,
-        {"document_root": settings.STATIC_ROOT},
+        serve_found if settings.DEBUG else serve,
+        {} if settings.DEBUG else {"document_root": settings.STATIC_ROOT},
     ),
 ]

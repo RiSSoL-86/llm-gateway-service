@@ -1,5 +1,12 @@
 # Client headers OpenRouter understands, the rest stays with us
-FORWARDED_REQUEST_HEADERS = ("HTTP-Referer", "X-Title")
+FORWARDED_REQUEST_HEADERS = (
+    "Content-Type",
+    "HTTP-Referer",
+    "X-Title",
+    "X-OpenRouter-Metadata",
+    "anthropic-version",
+    "anthropic-beta",
+)
 # ASGI header bytes come to Django decoded as this
 HEADER_ENCODING = "latin-1"
 # OpenRouter headers the client backs off by, the rest stays with us
