@@ -1,0 +1,17 @@
+.git
+.github
+.idea
+.vscode
+.venv
+.ruff_cache
+.mypy_cache
+.pytest_cache
+.coverage
+**/__pycache__
+**/*.pyc
+**/.env
+**/tests
+src/conftest.py
+src/staticfiles
+aws
+docs

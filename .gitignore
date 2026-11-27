@@ -221,3 +221,11 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# IDE
+.idea
+.vscode
+/test_data/
+
+# CDK
+cdk.out/

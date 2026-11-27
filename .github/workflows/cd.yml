@@ -1,0 +1,79 @@
+name: CD
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    needs: ci
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 45
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_ROLE }}
+          role-session-name: llm-gateway-service-github
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      # Every server from SSM: checkout of this commit, rebuild, cleanup, all services up
+      - name: Deploy to the servers
+        env:
+          SERVERS_PATH: ${{ secrets.SERVERS_SSM_PATH }}
+          APP_DIR: ${{ secrets.APP_DIR }}
+        run: |
+          ids=$(aws ssm get-parameters-by-path --path "$SERVERS_PATH" --recursive \
+            --query "Parameters[?ends_with(Name, '/instance-id')].Value" --output text)
+          echo "Servers: $ids"
+
+          parameters=$(jq -n --arg dir "$APP_DIR" --arg sha "$GITHUB_SHA" '{
+            executionTimeout: ["1800"],
+            commands: [
+              "set -e",
+              "export HOME=/root",
+              "cd \($dir)",
+              "test -f src/.env || { echo \"src/.env is missing in \($dir), place it first\"; exit 1; }",
+              "git fetch origin",
+              "git checkout --force --detach \($sha)",
+              "docker compose --env-file src/.env -f compose.yml up -d --build --remove-orphans",
+              "docker image prune -f",
+              "docker builder prune -f --keep-storage 2GB",
+              "sleep 30",
+              "docker compose --env-file src/.env -f compose.yml ps",
+              "if docker compose --env-file src/.env -f compose.yml ps --quiet --status exited --status restarting --status dead | grep -q .; then docker compose --env-file src/.env -f compose.yml logs --tail 50; exit 1; fi"
+            ]
+          }')
+          command_id=$(aws ssm send-command --instance-ids $ids \
+            --document-name AWS-RunShellScript \
+            --comment "llm-gateway-service ${GITHUB_SHA::7}" \
+            --parameters "$parameters" \
+            --query Command.CommandId --output text)
+
+          failed=0
+          for id in $ids; do
+            status=Pending
+            attempts=0
+            # 35 minutes at most: longer than the command's own 30 minute timeout
+            while [[ "$status" =~ ^(Pending|InProgress|Delayed)$ ]] && (( attempts++ < 210 )); do
+              sleep 10
+              status=$(aws ssm get-command-invocation --command-id "$command_id" \
+                --instance-id "$id" --query Status --output text 2>/dev/null || echo Pending)
+            done
+            echo "::group::$id: $status"
+            aws ssm get-command-invocation --command-id "$command_id" --instance-id "$id" \
+              --query "[StandardOutputContent, StandardErrorContent]" --output text
+            echo "::endgroup::"
+            [ "$status" = Success ] || failed=1
+          done
+          exit $failed

@@ -1,0 +1,31 @@
+[project]
+name = "llm-gateway-service-aws"
+version = "0.1.0"
+description = "AWS infrastructure of the LLM gateway service"
+requires-python = ">=3.14"
+dependencies = []
+
+[tool.uv.workspace]
+members = ["cdk"]
+
+[dependency-groups]
+dev = [
+    "mypy>=1.19.0",
+    "ruff>=0.14.0",
+]
+
+[tool.ruff]
+line-length = 79
+target-version = "py314"
+extend-exclude = ["cdk.out"]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "C4", "UP"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["stacks"]
+
+[tool.mypy]
+python_version = "3.14"
+strict = true
+explicit_package_bases = true

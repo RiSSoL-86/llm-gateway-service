@@ -1,0 +1,32 @@
+services:
+  llm-gateway-service:
+    build:
+      context: .
+      dockerfile: etc/docker/dev/Dockerfile
+    network_mode: "host"
+    env_file:
+      - src/.env
+    volumes:
+      - ./src/:/app/
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16-alpine
+    command: ["postgres", "-p", "${POSTGRES_PORT:?Set POSTGRES_PORT in src/.env}"]
+    network_mode: "host"
+    env_file:
+      - src/.env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -p $$POSTGRES_PORT -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres_data:
