@@ -3,6 +3,18 @@ from services.open_router.parsers.sniffer import AnswerSniffer
 from services.open_router.schemas import OpenRouterAnswer
 
 
+def test_keeps_responses_stream_error() -> None:
+    answer = OpenRouterAnswer()
+    sniffer = AnswerSniffer(answer=answer)
+
+    sniffer.feed(
+        chunk=b'data: {"type":"error","code":"server_error",'
+        b'"message":"Provider failed"}\n\n'
+    )
+
+    assert answer.error == "Provider failed"
+
+
 def test_finds_usage_split_across_chunks() -> None:
     answer = OpenRouterAnswer()
     sniffer = AnswerSniffer(answer=answer)

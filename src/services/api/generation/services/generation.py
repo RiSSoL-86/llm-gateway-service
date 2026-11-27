@@ -1,7 +1,6 @@
 from collections.abc import Mapping
 from http import HTTPMethod
 from typing import TYPE_CHECKING, final, override
-from urllib.parse import urlencode
 
 from apps.common.services.base import BaseService
 from services.open_router.constants import GENERATION_PATH
@@ -24,7 +23,7 @@ class GenerationService(BaseService):
     async def execute(
         self,
         client: str,
-        generation_id: str,
+        query: str,
         headers: Mapping[str, str],
     ) -> HttpResponse | StreamingHttpResponse:
         """Ask OpenRouter for cost and tokens of one generation."""
@@ -38,7 +37,7 @@ class GenerationService(BaseService):
         return await self.proxy.execute(
             method=HTTPMethod.GET,
             path=GENERATION_PATH,
-            query=urlencode(query={"id": generation_id}),
+            query=query,
             body=b"",
             headers=headers,
             metrics=metrics,

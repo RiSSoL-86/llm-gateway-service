@@ -9,7 +9,11 @@ from apps.common.schemas import PermissiveModel
 class GenerationQuery(BaseModel):
     """Take the generation id: the `id` of a completion answer."""
 
-    id: str = Field(examples=["gen-1234567890-abcdef"])
+    id: str | None = Field(
+        default=None,
+        description="Required by OpenRouter.",
+        examples=["gen-1234567890-abcdef"],
+    )
 
 
 @final

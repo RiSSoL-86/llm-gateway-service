@@ -2,7 +2,7 @@ from http import HTTPStatus
 from typing import final
 
 from django.http import HttpResponseBase
-from dmr import Body, ResponseSpec, validate
+from dmr import ResponseSpec, validate
 
 from services.api.chat_completions.schemas import (
     ChatCompletionRequest,
@@ -11,6 +11,7 @@ from services.api.chat_completions.schemas import (
 from services.api.chat_completions.services.chat_completion import (
     ChatCompletionService,
 )
+from services.api.common.components import BodyDocs
 from services.api.common.constants import UPSTREAM_ERROR_SPECS
 from services.api.common.controllers import GatewayController
 
@@ -34,13 +35,12 @@ class ChatCompletionsController(GatewayController):
     )
     async def post(
         self,
-        parsed_body: Body[ChatCompletionRequest],
+        body_docs: BodyDocs[ChatCompletionRequest],
     ) -> HttpResponseBase:
         """Take the chat completion request and give it to its service."""
         return await ChatCompletionService().execute(
             client=self.client,
+            query=self.query,
             body=self.request.body,
             headers=self.request.headers,
-            model=parsed_body.model,
-            stream=parsed_body.stream,
         )

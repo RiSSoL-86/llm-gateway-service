@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, final, override
 
 from apps.common.services.base import BaseService
 from services.open_router.constants import CHAT_COMPLETIONS_PATH
+from services.open_router.parsers.request import RequestReader
 from services.proxy.schemas import ProxyMetrics
 from services.proxy.services.proxy import ProxyService
 
@@ -23,23 +24,23 @@ class ChatCompletionService(BaseService):
     async def execute(
         self,
         client: str,
+        query: str,
         body: bytes,
         headers: Mapping[str, str],
-        model: str | None,
-        stream: bool,
     ) -> HttpResponse | StreamingHttpResponse:
         """Send the chat completion to OpenRouter as is."""
+        request = RequestReader.read(body=body)
         metrics = ProxyMetrics(
             client=client,
             endpoint=CHAT_COMPLETIONS_PATH,
-            model=model,
-            stream=stream,
+            model=request.model,
+            stream=request.stream,
             request_bytes=len(body),
         )
         return await self.proxy.execute(
             method=HTTPMethod.POST,
             path=CHAT_COMPLETIONS_PATH,
-            query="",
+            query=query,
             body=body,
             headers=headers,
             metrics=metrics,

@@ -50,3 +50,21 @@ async def test_rejects_unknown_key(upstream) -> None:
 
     assert response.status_code == 401
     assert upstream == []
+
+
+async def test_proxies_embedding_models_page(upstream) -> None:
+    models = {"data": [{"id": "openai/text-embedding-3-small"}]}
+    upstream.install(
+        handler=lambda _: httpx.Response(status_code=200, json=models)
+    )
+
+    response = await AsyncClient().get(
+        path=f"{reverse('api:embeddings:models')}?limit=1&offset=2",
+        headers=AUTH,
+    )
+
+    assert response.status_code == 200
+    assert response.json() == models
+    assert upstream[0].url == (
+        f"{UPSTREAM_URL}/embeddings/models?limit=1&offset=2"
+    )

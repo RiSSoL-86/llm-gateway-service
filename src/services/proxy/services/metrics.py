@@ -50,18 +50,38 @@ class ReportProxyMetricsService(BaseService):
             "outcome": metrics.outcome,
             "error": metrics.error or answer.error,
             "request_bytes": metrics.request_bytes,
-            "prompt_tokens": usage.get("prompt_tokens"),
-            "completion_tokens": usage.get("completion_tokens"),
-            "total_tokens": usage.get("total_tokens"),
-            "cached_tokens": cls._nested(
-                data=usage,
-                key="prompt_tokens_details",
-                field="cached_tokens",
+            # Chat names first, then `responses` and `messages` (`input_*`)
+            "prompt_tokens": cls._first(
+                usage.get("prompt_tokens"), usage.get("input_tokens")
             ),
-            "reasoning_tokens": cls._nested(
-                data=usage,
-                key="completion_tokens_details",
-                field="reasoning_tokens",
+            "completion_tokens": cls._first(
+                usage.get("completion_tokens"), usage.get("output_tokens")
+            ),
+            "total_tokens": usage.get("total_tokens"),
+            "cached_tokens": cls._first(
+                cls._nested(
+                    data=usage,
+                    key="prompt_tokens_details",
+                    field="cached_tokens",
+                ),
+                cls._nested(
+                    data=usage,
+                    key="input_tokens_details",
+                    field="cached_tokens",
+                ),
+                usage.get("cache_read_input_tokens"),
+            ),
+            "reasoning_tokens": cls._first(
+                cls._nested(
+                    data=usage,
+                    key="completion_tokens_details",
+                    field="reasoning_tokens",
+                ),
+                cls._nested(
+                    data=usage,
+                    key="output_tokens_details",
+                    field="reasoning_tokens",
+                ),
             ),
             "cost": usage.get("cost"),
             "upstream_headers_ms": cls._ms(
@@ -97,6 +117,10 @@ class ReportProxyMetricsService(BaseService):
         if start is None or end is None:
             return None
         return round((end - start) * 1000, 2)
+
+    @staticmethod
+    def _first(*values: Any) -> Any:
+        return next((value for value in values if value is not None), None)
 
     @staticmethod
     def _nested(data: dict[str, Any], key: str, field: str) -> Any:
